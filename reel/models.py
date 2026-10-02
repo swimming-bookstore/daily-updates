@@ -125,8 +125,7 @@ def draw_title(ctx, today, t, title, size=56):
     show(ctx, date, 0, y + th + 16, 36, "bold", DATE, width=W, align="center")
 
 
-def draw_badge(ctx, text, cx, y, t, delay=0.0):
-    size = 26
+def draw_badge(ctx, text, cx, y, t, delay=0.0, size=26):
     lay = layout(ctx, text, size, "bold")
     tw, th = lay.get_pixel_size()
     pad_x, pad_y = 16, 8
@@ -169,11 +168,15 @@ def draw(ctx, items, today, t, icons, title):
     n = max(1, len(items))
     cols = 2
     rows = math.ceil(n / cols)
-    gap_x, gap_y = 28, 26
+    gap_x, gap_y = 28, 18
     left = 56
     card_w = (W - left * 2 - gap_x * (cols - 1)) / cols
-    top, bottom = 300, 1788
+    top, bottom = 280, 1808
     card_h = (bottom - top - gap_y * (rows - 1)) / rows
+    box = 72 if rows > 3 else 100
+    name_size = 30 if rows > 3 else 36
+    date_size = 28 if rows > 3 else 36
+    badge_size = 22 if rows > 3 else 26
 
     for i, item in enumerate(items):
         col = i % cols
@@ -183,9 +186,8 @@ def draw(ctx, items, today, t, icons, title):
         ctx.save()
         glass_card(ctx, x, y, card_w, card_h)
 
-        box = 100
         bx = x + (card_w - box) / 2
-        by = y + 40
+        by = y + (18 if rows > 3 else 40)
         key = item.get("icon") or item["name"]
         style = ICON_STYLE.get(key, {"bg": None, "pad": 8, "clip": False})
         paint_icon(
@@ -200,18 +202,17 @@ def draw(ctx, items, today, t, icons, title):
         )
 
         name = item["name"]
-        name_size = 36
-        name_y = by + box + 18
+        name_y = by + box + 12
         nw, nh = layout(ctx, name, name_size, "bold").get_pixel_size()
         show(ctx, name, x, name_y, name_size, "bold", INK, width=card_w, align="center")
 
-        dw, dh = layout(ctx, item["day"], 36, "bold").get_pixel_size()
-        day_y = name_y + nh + 10
-        show(ctx, item["day"], x, day_y, 36, "bold", DATE, width=card_w, align="center")
+        dw, dh = layout(ctx, item["day"], date_size, "bold").get_pixel_size()
+        day_y = name_y + nh + 6
+        show(ctx, item["day"], x, day_y, date_size, "bold", DATE, width=card_w, align="center")
 
         badge = badge_text(item) or age_label(item["day"], today)
         if badge:
-            draw_badge(ctx, badge, x + card_w / 2, day_y + dh + 10, t, delay=i * 0.08)
+            draw_badge(ctx, badge, x + card_w / 2, day_y + dh + 8, t, delay=i * 0.08, size=badge_size)
         ctx.restore()
 
     draw_copyright(ctx)

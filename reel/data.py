@@ -18,12 +18,13 @@ AGENT_SOURCES = [
 ]
 
 MODEL_SOURCES = [
-    {"name": "Claude Fable", "provider": "anthropic", "id": "claude-fable-5-1", "icon": "claude"},
-    {"name": "Claude Opus", "provider": "anthropic", "id": "claude-opus-5-5", "icon": "claude"},
-    {"name": "GPT Astra", "provider": "openai", "id": "gpt-6-astra", "icon": "openai"},
-    {"name": "GPT Sol", "provider": "openai", "id": "gpt-6.1-sol", "icon": "openai"},
-    {"name": "Gemini Flash", "provider": "google", "id": "gemini-3.8-flash", "icon": "gemini"},
-    {"name": "Grok", "provider": "xai", "id": "grok-4.7", "icon": "grok"},
+    {"name": "Claude Fable", "provider": "anthropic", "family": "claude-fable", "icon": "claude"},
+    {"name": "Claude Opus", "provider": "anthropic", "family": "claude-opus", "icon": "claude"},
+    {"name": "Claude Sonnet", "provider": "anthropic", "family": "claude-sonnet", "icon": "claude"},
+    {"name": "GPT Astra", "provider": "openai", "family": "gpt-astra", "icon": "openai"},
+    {"name": "GPT Sol", "provider": "openai", "family": "gpt-sol", "icon": "openai"},
+    {"name": "Gemini Flash", "provider": "google", "family": "gemini-flash", "icon": "gemini"},
+    {"name": "Grok", "provider": "xai", "family": "grok", "icon": "grok"},
 ]
 
 
@@ -99,20 +100,25 @@ def load_agents(today, yesterday):
     return items
 
 
+def latest_model(models, src):
+    family = src.get("family")
+    if family:
+        matches = [m for m in models.values() if m.get("family") == family]
+        if not matches:
+            raise RuntimeError(f"missing family {src['provider']}/{family}")
+        return max(matches, key=lambda m: m.get("release_date") or "")
+    model = models.get(src["id"])
+    if not model:
+        raise RuntimeError(f"missing model {src['provider']}/{src['id']}")
+    return model
+
+
 def load_models(today, yesterday):
     catalog = fetch_json("https://models.dev/api.json")
     items = []
     for src in MODEL_SOURCES:
         provider = catalog.get(src["provider"], {})
-        models = provider.get("models", {})
-        model = models.get(src["id"])
-        if not model:
-            prefix = src["id"].rsplit("-", 1)[0]
-            matches = [m for mid, m in models.items() if mid == src["id"] or mid.startswith(prefix)]
-            if matches:
-                model = max(matches, key=lambda m: m.get("release_date") or "")
-        if not model:
-            raise RuntimeError(f"missing model {src['provider']}/{src['id']}")
+        model = latest_model(provider.get("models", {}), src)
         published = model.get("release_date") or model.get("last_updated") or ""
         name = model.get("name") or src["name"]
         items.append(pack_item(name, name, published, today, yesterday, icon=src["icon"]))
