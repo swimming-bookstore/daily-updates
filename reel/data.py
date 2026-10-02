@@ -6,7 +6,10 @@ from .core import fetch_json
 
 
 AGENT_SOURCES = [
-    {"name": "Claude Code", "npm": "https://registry.npmjs.org/@anthropic-ai/claude-code"},
+    {
+        "name": "Claude Code",
+        "github": "https://api.github.com/repos/anthropics/claude-code/releases/latest",
+    },
     {"name": "Codex", "npm": "https://registry.npmjs.org/@openai/codex"},
     {"name": "Pi", "npm": "https://registry.npmjs.org/@earendil-works/pi-coding-agent"},
     {"name": "OpenClaw", "npm": "https://registry.npmjs.org/openclaw"},
