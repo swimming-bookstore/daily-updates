@@ -8,62 +8,17 @@ from gi.repository import PangoCairo
 from .core import (
     DATE,
     H,
-    ICON_STYLE,
-    INK,
     W,
-    badge_text,
     draw_copyright,
+    draw_rows,
     ease,
-    layout,
     measure_orbitron,
     mix,
-    paint_icon,
     palette_at,
     pretty_date,
-    rainbow,
     rgb,
     show,
 )
-
-
-def draw_badge(ctx, text, right, y, t, delay=0.0):
-    size = 28
-    lay = layout(ctx, text, size, "bold")
-    tw, th = lay.get_pixel_size()
-    pad_x, pad_y = 16, 8
-    bw, bh = tw + pad_x * 2, th + pad_y * 2
-    x = right - bw
-    enter = ease((t - 0.14 - delay) / 0.22)
-    if enter <= 0:
-        return bh
-    shift = (t * 0.85 + delay * 0.2) % 1.0
-    sweep = (t * 1.05 + delay * 0.18) % 1.0
-
-    ctx.save()
-    ctx.push_group()
-    ctx.rectangle(x, y, bw, bh)
-    ctx.set_source(rainbow(x, y, x + bw, y + bh, shift))
-    ctx.fill()
-
-    ctx.save()
-    ctx.rectangle(x, y, bw, bh)
-    ctx.clip()
-    sx = x + (sweep * 1.8 - 0.4) * bw
-    shine = cairo.LinearGradient(sx, y, sx + bw * 0.32, y)
-    shine.add_color_stop_rgba(0.00, 1, 1, 1, 0.00)
-    shine.add_color_stop_rgba(0.50, 1, 1, 1, 0.28)
-    shine.add_color_stop_rgba(1.00, 1, 1, 1, 0.00)
-    ctx.set_source(shine)
-    ctx.paint()
-    ctx.restore()
-
-    rgb(ctx, (1, 1, 1))
-    ctx.move_to(x + pad_x, y + pad_y)
-    PangoCairo.show_layout(ctx, lay)
-    ctx.pop_group_to_source()
-    ctx.paint_with_alpha(enter)
-    ctx.restore()
-    return bh
 
 
 def bg(ctx, t):
@@ -132,62 +87,28 @@ def draw_title(ctx, today, t, title, size=56):
     show(ctx, date, 0, y + th + 16, 36, "bold", DATE, width=W, align="center")
 
 
+THEME = {
+    "card_w": 920,
+    "top": 310,
+    "bottom": 1788,
+    "gap": 24,
+    "box": 92,
+    "name_size": 44,
+    "ver_size": 36,
+    "day_size": 30,
+    "badge_size": 28,
+    "show_version": True,
+    "pane_top": 0.22,
+    "pane_bot": 0.08,
+}
+
+
 def draw(ctx, items, today, t, icons, title):
     bg(ctx, t)
     k = ease(t / 0.25) if t < 0.25 else 1.0
     ctx.push_group()
     draw_title(ctx, today, t, title, size=56)
-
-    n = max(1, len(items))
-    card_w = 920
-    left = (W - card_w) / 2
-    top, bottom = 310, 1788
-    gap = 24
-    card_h = (bottom - top - gap * (n - 1)) / n
-
-    for i, item in enumerate(items):
-        y = top + i * (card_h + gap)
-        ctx.save()
-        pane = cairo.LinearGradient(left, y, left, y + card_h)
-        pane.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.22)
-        pane.add_color_stop_rgba(1.00, 1.00, 1.00, 1.00, 0.08)
-        ctx.set_source(pane)
-        ctx.rectangle(left, y, card_w, card_h)
-        ctx.fill()
-
-        box = 92
-        bx = left + 32
-        by = y + (card_h - box) / 2
-        key = item.get("icon") or item["name"]
-        style = ICON_STYLE.get(key, {"bg": (1, 1, 1), "pad": 10})
-        paint_icon(
-            ctx,
-            icons[key],
-            bx,
-            by,
-            box,
-            bg=style.get("bg"),
-            pad=style.get("pad", 0),
-            clip=style.get("clip", True),
-        )
-
-        name_size = 44
-        nw, nh = layout(ctx, item["name"], name_size, "bold").get_pixel_size()
-        name_y = y + (card_h - nh) / 2
-        show(ctx, item["name"], left + 148, name_y, name_size, "bold", INK)
-
-        ver = item["version"]
-        vw, vh = layout(ctx, ver, name_size, "bold").get_pixel_size()
-        dw, dh = layout(ctx, item["day"], 36, "bold").get_pixel_size()
-        right = left + card_w - 36
-        badge = badge_text(item, today)
-        if badge:
-            bh = layout(ctx, badge, 28, "bold").get_pixel_size()[1] + 16
-            draw_badge(ctx, badge, right, name_y - 10 - bh, t, delay=i * 0.08)
-        show(ctx, ver, right - vw, name_y, name_size, "bold", INK)
-        show(ctx, item["day"], right - dw, name_y + nh + 6, 36, "bold", DATE)
-        ctx.restore()
-
+    draw_rows(ctx, items, today, t, icons, THEME)
     draw_copyright(ctx)
     ctx.pop_group_to_source()
     ctx.paint_with_alpha(k)

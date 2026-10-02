@@ -1,1 +1,1 @@
-"""Shared reel framework: data, drawing helpers, and two themes."""
+"""Shared reel framework: fetch, canvas, glass rows, and encode."""

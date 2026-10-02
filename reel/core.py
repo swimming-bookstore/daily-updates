@@ -256,11 +256,141 @@ def badge_text(item, today=None):
         return "UPDATED TODAY"
     if item["yesterday"]:
         return "UPDATED YESTERDAY"
-    if today and item.get("name") == "Hermes Agent" and item.get("day"):
+    if today and item.get("day"):
         age = age_label(item["day"], today)
         if age:
             return f"UPDATED {age}"
     return None
+
+
+def glass_pane(ctx, x, y, w, h, top=0.22, mid=None, bot=0.08):
+    pane = cairo.LinearGradient(x, y, x, y + h)
+    pane.add_color_stop_rgba(0.00, 1, 1, 1, top)
+    if mid is not None:
+        pane.add_color_stop_rgba(0.45, 1, 1, 1, mid)
+    pane.add_color_stop_rgba(1.00, 1, 1, 1, bot)
+    ctx.set_source(pane)
+    ctx.rectangle(x, y, w, h)
+    ctx.fill()
+
+
+def draw_badge(ctx, text, right, y, t, delay=0.0, size=28, align="right"):
+    """Rainbow age pill. right is the right edge, or the center when align='center'."""
+    from gi.repository import PangoCairo
+
+    lay = layout(ctx, text, size, "bold")
+    tw, th = lay.get_pixel_size()
+    pad_x, pad_y = 16, 8
+    bw, bh = tw + pad_x * 2, th + pad_y * 2
+    x = right - bw / 2 if align == "center" else right - bw
+    enter = ease((t - 0.14 - delay) / 0.22)
+    if enter <= 0:
+        return bh
+    shift = (t * 0.85 + delay * 0.2) % 1.0
+    sweep = (t * 1.05 + delay * 0.18) % 1.0
+
+    ctx.save()
+    ctx.push_group()
+    ctx.rectangle(x, y, bw, bh)
+    ctx.set_source(rainbow(x, y, x + bw, y + bh, shift))
+    ctx.fill()
+
+    ctx.save()
+    ctx.rectangle(x, y, bw, bh)
+    ctx.clip()
+    sx = x + (sweep * 1.8 - 0.4) * bw
+    shine = cairo.LinearGradient(sx, y, sx + bw * 0.32, y)
+    shine.add_color_stop_rgba(0.00, 1, 1, 1, 0.00)
+    shine.add_color_stop_rgba(0.50, 1, 1, 1, 0.28)
+    shine.add_color_stop_rgba(1.00, 1, 1, 1, 0.00)
+    ctx.set_source(shine)
+    ctx.paint()
+    ctx.restore()
+
+    rgb(ctx, WHITE)
+    ctx.move_to(x + pad_x, y + pad_y)
+    PangoCairo.show_layout(ctx, lay)
+    ctx.pop_group_to_source()
+    ctx.paint_with_alpha(enter)
+    ctx.restore()
+    return bh
+
+
+def draw_rows(ctx, items, today, t, icons, theme):
+    """Wide glass rows: icon, name, version, date, age badge."""
+    n = max(1, len(items))
+    card_w = theme.get("card_w", 920)
+    left = (W - card_w) / 2
+    top = theme.get("top", 310)
+    bottom = theme.get("bottom", 1788)
+    gap = theme.get("gap", 24)
+    card_h = (bottom - top - gap * (n - 1)) / n
+    box = theme.get("box", 92)
+    name_size = theme.get("name_size", 44)
+    ver_size = theme.get("ver_size", 36)
+    day_size = theme.get("day_size", 30)
+    badge_size = theme.get("badge_size", 28)
+    show_version = theme.get("show_version", True)
+    ink = theme.get("ink", INK)
+    date_color = theme.get("date", DATE)
+
+    for i, item in enumerate(items):
+        y = top + i * (card_h + gap)
+        ctx.save()
+        glass_pane(
+            ctx,
+            left,
+            y,
+            card_w,
+            card_h,
+            top=theme.get("pane_top", 0.22),
+            mid=theme.get("pane_mid"),
+            bot=theme.get("pane_bot", 0.08),
+        )
+
+        bx = left + 32
+        by = y + (card_h - box) / 2
+        key = icon_key(item)
+        style = ICON_STYLE.get(key, {"bg": (1, 1, 1), "pad": 10})
+        paint_icon(
+            ctx,
+            icons[key],
+            bx,
+            by,
+            box,
+            bg=style.get("bg"),
+            pad=style.get("pad", 0),
+            clip=style.get("clip", True),
+        )
+
+        ver = item["version"] if show_version else ""
+        day = item["day"]
+        right = left + card_w - 36
+        vw = layout(ctx, ver, ver_size, "bold").get_pixel_size()[0] if ver else 0
+        dw, dh = layout(ctx, day, day_size, "bold").get_pixel_size()
+        vh = layout(ctx, ver or "0", ver_size, "bold").get_pixel_size()[1] if ver else 0
+        name_x = left + 32 + box + 24
+        max_name = right - max(vw, dw) - 36 - name_x
+        size = name_size
+        while size > 28 and layout(ctx, item["name"], size, "bold").get_pixel_size()[0] > max_name:
+            size -= 2
+        nw, nh = layout(ctx, item["name"], size, "bold").get_pixel_size()
+        name_y = y + (card_h - nh) / 2
+        show(ctx, item["name"], name_x, name_y, size, "bold", ink)
+
+        badge = badge_text(item, today)
+        badge_h = layout(ctx, badge, badge_size, "bold").get_pixel_size()[1] + 16 if badge else 0
+        text_h = (vh + 8 + dh) if ver else dh
+        block_h = (badge_h + 10 if badge else 0) + text_h
+        block_y = y + (card_h - block_h) / 2
+        if badge:
+            draw_badge(ctx, badge, right, block_y, t, delay=i * 0.08, size=badge_size)
+        text_y = block_y + (badge_h + 10 if badge else 0)
+        if ver:
+            show(ctx, ver, right - vw, text_y, ver_size, "bold", ink)
+            text_y += vh + 8
+        show(ctx, day, right - dw, text_y, day_size, "bold", date_color)
+        ctx.restore()
 
 
 def render(items, today, slug, title, draw_fn):
@@ -278,7 +408,7 @@ def render(items, today, slug, title, draw_fn):
         out = os.path.join(ROOT, f"reel_{slug}_{today}.mp4")
         subprocess.check_call(
             [
-                "ffmpeg",
+                "/usr/bin/ffmpeg",
                 "-y",
                 "-loglevel",
                 "error",
