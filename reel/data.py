@@ -38,7 +38,7 @@ MODEL_SOURCES = [
     {"name": "GPT Astra", "provider": "openai", "family": "gpt-astra", "icon": "openai"},
     {"name": "GPT Sol", "provider": "openai", "family": "gpt-sol", "icon": "openai"},
     {"name": "Gemini Flash", "provider": "google", "family": "gemini-flash", "icon": "gemini"},
-    {"name": "Grok", "provider": "xai", "family": "grok", "icon": "grok"},
+    {"name": "Grok", "provider": "xai", "family": "grok", "icon": "grok", "exclude": "imagine"},
 ]
 
 
@@ -145,7 +145,14 @@ def load_agents(today, yesterday):
 def latest_model(models, src):
     family = src.get("family")
     if family:
-        matches = [m for m in models.values() if m.get("family") == family]
+        skip = src.get("exclude")
+        matches = [
+            m
+            for m in models.values()
+            if m.get("family") == family
+            and not (skip and skip in (m.get("id") or "").lower())
+            and not (skip and skip in (m.get("name") or "").lower())
+        ]
         if not matches:
             raise RuntimeError(f"missing family {src['provider']}/{family}")
         return max(matches, key=lambda m: m.get("release_date") or "")
