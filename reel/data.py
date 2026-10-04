@@ -1,5 +1,6 @@
 """Version sources for coding agents and LLM models."""
 
+import json
 import re
 
 from .core import fetch_json
@@ -54,6 +55,19 @@ def fetch_html(url):
         return resp.read().decode("utf-8", "ignore")
 
 
+def github_releases(repo):
+    url = f"https://api.github.com/repos/{repo}/releases?per_page=100"
+    req_headers = {
+        "User-Agent": "updates-reel",
+        "Accept": "application/vnd.github+json",
+    }
+    import urllib.request
+
+    req = urllib.request.Request(url, headers=req_headers)
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.load(resp)
+
+
 def page_date(url):
     match = re.search(r'datetime="([0-9T:\-Z]+)"', fetch_html(url))
     return match.group(1) if match else ""
@@ -95,10 +109,43 @@ def pick_release(src, entries):
     raise RuntimeError(f"no release matched {src['name']}")
 
 
+def repo_from_releases(url):
+    match = re.search(r"github\.com/([^/]+/[^/]+)/releases", url)
+    if not match:
+        raise RuntimeError(f"not a github releases url: {url}")
+    return match.group(1)
+
+
+def api_entries(releases, repo):
+    entries = []
+    for rel in releases:
+        if rel.get("draft"):
+            continue
+        label = (rel.get("name") or rel.get("tag_name") or "").strip()
+        tag = rel.get("tag_name") or ""
+        if not label or not tag:
+            continue
+        entries.append(
+            {
+                "label": label,
+                "href": f"/{repo}/releases/tag/{tag}",
+                "published": rel.get("published_at") or "",
+                "prerelease": bool(rel.get("prerelease")),
+            }
+        )
+    return entries
+
+
 def load_releases(src):
-    picked = pick_release(src, release_entries(fetch_html(src["releases"])))
+    repo = repo_from_releases(src["releases"])
+    try:
+        entries = api_entries(github_releases(repo), repo)
+    except Exception:
+        entries = release_entries(fetch_html(src["releases"]))
+    picked = pick_release(src, entries)
     version = picked["label"].split()[-1].lstrip("v")
-    return {"version": version, "published": page_date("https://github.com" + picked["href"])}
+    published = picked.get("published") or page_date("https://github.com" + picked["href"])
+    return {"version": version, "published": published}
 
 
 def load_marketplace(src):
