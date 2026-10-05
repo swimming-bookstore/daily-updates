@@ -162,8 +162,6 @@ def glass_card(ctx, x, y, w, h):
 
 def draw(ctx, items, today, t, icons, title):
     bg(ctx, t)
-    k = ease(t / 0.25) if t < 0.25 else 1.0
-    ctx.push_group()
     draw_title(ctx, today, t, title)
 
     n = max(1, len(items))
@@ -215,5 +213,3 @@ def draw(ctx, items, today, t, icons, title):
         ctx.restore()
 
     draw_copyright(ctx)
-    ctx.pop_group_to_source()
-    ctx.paint_with_alpha(k)

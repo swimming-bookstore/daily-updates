@@ -11,7 +11,6 @@ from .core import (
     W,
     draw_copyright,
     draw_rows,
-    ease,
     measure_orbitron,
     mix,
     palette_at,
@@ -105,10 +104,6 @@ THEME = {
 
 def draw(ctx, items, today, t, icons, title):
     bg(ctx, t)
-    k = ease(t / 0.25) if t < 0.25 else 1.0
-    ctx.push_group()
     draw_title(ctx, today, t, title, size=56)
     draw_rows(ctx, items, today, t, icons, THEME)
     draw_copyright(ctx)
-    ctx.pop_group_to_source()
-    ctx.paint_with_alpha(k)
