@@ -173,8 +173,14 @@ def load_icons(items):
         key = icon_key(item)
         if key in icons:
             continue
-        path = os.path.join(folder, ICON_FILES[key])
-        icons[key] = GdkPixbuf.Pixbuf.new_from_file_at_size(path, 192, 192)
+        named = item.get("icon_path") or ICON_FILES.get(key)
+        if not named:
+            raise KeyError(key)
+        path = named if os.path.isabs(named) else os.path.join(folder, named)
+        if path.lower().endswith((".jpg", ".jpeg")):
+            icons[key] = GdkPixbuf.Pixbuf.new_from_file(path)
+        else:
+            icons[key] = GdkPixbuf.Pixbuf.new_from_file_at_size(path, 192, 192)
     return icons
 
 
@@ -393,11 +399,12 @@ def draw_rows(ctx, items, today, t, icons, theme):
         ctx.restore()
 
 
-def render(items, today, slug, title, draw_fn):
+def render(items, today, slug, title, draw_fn, duration=None):
     tmp = tempfile.mkdtemp(prefix="reel_")
     icons = load_icons(items)
+    dur = DUR if duration is None else float(duration)
     try:
-        n = int(round(DUR * FPS))
+        n = int(round(dur * FPS))
         for i in range(n):
             surface = cairo.ImageSurface(cairo.FORMAT_RGB24, W, H)
             ctx = cairo.Context(surface)
